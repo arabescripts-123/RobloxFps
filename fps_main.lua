@@ -186,13 +186,13 @@ local function addESP(plr)
             
             local billboard = Instance.new("BillboardGui")
             billboard.Adornee = head
-            billboard.Size = UDim2.new(0, 100, 0, 70)
+            billboard.Size = UDim2.new(0, 100, 0, 50)
             billboard.StudsOffset = Vector3.new(0, 3, 0)
             billboard.AlwaysOnTop = true
             billboard.Parent = head
             
             local nameLabel = Instance.new("TextLabel")
-            nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
             nameLabel.BackgroundTransparency = 1
             nameLabel.Text = plr.Name
             nameLabel.TextColor3 = color
@@ -201,15 +201,21 @@ local function addESP(plr)
             nameLabel.TextSize = 14
             nameLabel.Parent = billboard
             
+            local healthBillboard = Instance.new("BillboardGui")
+            healthBillboard.Adornee = head
+            healthBillboard.Size = UDim2.new(0, 100, 0, 30)
+            healthBillboard.StudsOffset = Vector3.new(0, -3.5, 0)
+            healthBillboard.AlwaysOnTop = true
+            healthBillboard.Parent = head
+            
             local healthLabel = Instance.new("TextLabel")
-            healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
-            healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+            healthLabel.Size = UDim2.new(1, 0, 1, 0)
             healthLabel.BackgroundTransparency = 1
             healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
             healthLabel.TextStrokeTransparency = 0.5
             healthLabel.Font = Enum.Font.GothamBold
             healthLabel.TextSize = 12
-            healthLabel.Parent = billboard
+            healthLabel.Parent = healthBillboard
             
             local function updateHealth()
                 if humanoid and humanoid.Health > 0 then
@@ -225,6 +231,7 @@ local function addESP(plr)
             if not espBoxes[plr] then espBoxes[plr] = {} end
             table.insert(espBoxes[plr], highlight)
             table.insert(espBoxes[plr], billboard)
+            table.insert(espBoxes[plr], healthBillboard)
         end)
     end
     
@@ -534,8 +541,10 @@ maxBtn.MouseButton1Click:Connect(function()
     if maxEnabled then
         aimbotEnabled = false
         autoFireEnabled = false
+        showFOV = false
         aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        fovIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
     else
         maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
@@ -543,11 +552,20 @@ maxBtn.MouseButton1Click:Connect(function()
 end)
 
 fovBtn.MouseButton1Click:Connect(function()
+    if maxEnabled then return end
     showFOV = not showFOV
     if showFOV then
         fovIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
     else
         fovIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseWheel then
+        if not maxEnabled and (aimbotEnabled or autoFireEnabled or showFOV) then
+            aimbotFOV = math.clamp(aimbotFOV + (input.Position.Z * 10), 50, 500)
+        end
     end
 end)
 
@@ -657,13 +675,16 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         if maxEnabled then
             aimbotEnabled = false
             autoFireEnabled = false
+            showFOV = false
             aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            fovIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
         else
             maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         end
     elseif input.KeyCode == fovKey then
+        if maxEnabled then return end
         showFOV = not showFOV
         if showFOV then
             fovIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
@@ -681,4 +702,4 @@ end)
 
 ScreenGui.Parent = game.CoreGui
 
-print("[FPS] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=FOV | Aimbot: Segure BOTAO DIREITO")
+print("[FPS] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=FOV | Scroll=FOV Size | Aimbot: Segure BOTAO DIREITO")
