@@ -22,7 +22,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 335)
+MainFrame.Size = UDim2.new(0, 220, 0, 390)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -201,12 +201,13 @@ local function addESP(plr)
             nameLabel.TextSize = 14
             nameLabel.Parent = billboard
             
+            local rootPart = char:FindFirstChild("HumanoidRootPart")
             local healthBillboard = Instance.new("BillboardGui")
-            healthBillboard.Adornee = head
+            healthBillboard.Adornee = rootPart or head
             healthBillboard.Size = UDim2.new(0, 100, 0, 30)
-            healthBillboard.StudsOffset = Vector3.new(0, -3.5, 0)
+            healthBillboard.StudsOffset = Vector3.new(0, -4, 0)
             healthBillboard.AlwaysOnTop = true
-            healthBillboard.Parent = head
+            healthBillboard.Parent = rootPart or head
             
             local healthLabel = Instance.new("TextLabel")
             healthLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -315,6 +316,64 @@ local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
 
 local fovBtn, fovIndicator = createButton("Show FOV", UDim2.new(0, 10, 0, 230))
 local fovKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
+
+local fovLabel = Instance.new("TextLabel")
+fovLabel.Parent = MainFrame
+fovLabel.BackgroundTransparency = 1
+fovLabel.Position = UDim2.new(0, 10, 0, 275)
+fovLabel.Size = UDim2.new(1, -20, 0, 20)
+fovLabel.Font = Enum.Font.Gotham
+fovLabel.Text = "FOV: 100"
+fovLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+fovLabel.TextSize = 12
+fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local fovSliderBg = Instance.new("Frame")
+fovSliderBg.Parent = MainFrame
+fovSliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+fovSliderBg.Position = UDim2.new(0, 10, 0, 300)
+fovSliderBg.Size = UDim2.new(0, 200, 0, 20)
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(0, 6)
+sliderCorner.Parent = fovSliderBg
+
+local fovSliderFill = Instance.new("Frame")
+fovSliderFill.Parent = fovSliderBg
+fovSliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+fovSliderFill.Size = UDim2.new(0.11, 0, 1, 0)
+fovSliderFill.BorderSizePixel = 0
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(0, 6)
+fillCorner.Parent = fovSliderFill
+
+local fovSliderBtn = Instance.new("TextButton")
+fovSliderBtn.Parent = fovSliderBg
+fovSliderBtn.BackgroundTransparency = 1
+fovSliderBtn.Size = UDim2.new(1, 0, 1, 0)
+fovSliderBtn.Text = ""
+
+local sliderDragging = false
+fovSliderBtn.MouseButton1Down:Connect(function()
+    sliderDragging = true
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        sliderDragging = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if sliderDragging and not maxEnabled then
+        local mousePos = UIS:GetMouseLocation()
+        local sliderPos = fovSliderBg.AbsolutePosition
+        local sliderSize = fovSliderBg.AbsoluteSize
+        local relativePos = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
+        aimbotFOV = math.floor(50 + (450 * relativePos))
+        fovSliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+        fovLabel.Text = "FOV: " .. aimbotFOV
+    end
+end)
 
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -491,26 +550,14 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-local lastFireTime = 0
-local fireDelay = 0.03
-local isFiring = false
-
 RunService.Heartbeat:Connect(function()
-    local currentTime = tick()
-    
-    if (maxEnabled or autoFireEnabled) and not isFiring then
-        local hasEnemy, enemyPlayer = isEnemyInCrosshair()
-        
-        if hasEnemy and (currentTime - lastFireTime) >= fireDelay then
-            isFiring = true
-            lastFireTime = currentTime
-            
-            task.spawn(function()
+    if maxEnabled or autoFireEnabled then
+        local hasEnemy = isEnemyInCrosshair()
+        if hasEnemy then
+            pcall(function()
                 mouse1press()
-                task.wait(0.02)
+                task.wait(0.001)
                 mouse1release()
-                task.wait(0.01)
-                isFiring = false
             end)
         end
     end
@@ -561,13 +608,7 @@ fovBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-UIS.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseWheel then
-        if not maxEnabled and (aimbotEnabled or autoFireEnabled or showFOV) then
-            aimbotFOV = math.clamp(aimbotFOV + (input.Position.Z * 10), 50, 500)
-        end
-    end
-end)
+
 
 rejoinBtn.MouseButton1Click:Connect(function()
     local ts = game:GetService("TeleportService")
