@@ -22,7 +22,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 290)
+MainFrame.Size = UDim2.new(0, 220, 0, 335)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -139,13 +139,15 @@ local espKey = Enum.KeyCode.J
 local aimbotKey = Enum.KeyCode.X
 local autoFireKey = Enum.KeyCode.C
 local maxKey = Enum.KeyCode.V
+local fovKey = Enum.KeyCode.N
 local toggleKey = Enum.KeyCode.Z
 
 local aimbotEnabled = false
-local aimbotFOV = 300
+local aimbotFOV = 100
 local rightMouseDown = false
 local autoFireEnabled = false
 local maxEnabled = false
+local showFOV = false
 
 local espEnabled = false
 local espBoxes = {}
@@ -169,7 +171,8 @@ local function addESP(plr)
             if not isEnemy(plr) then return end
             
             local head = char:FindFirstChild("Head")
-            if not head then return end
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if not head or not humanoid then return end
             
             local color = Color3.fromRGB(255, 0, 0)
             
@@ -183,13 +186,13 @@ local function addESP(plr)
             
             local billboard = Instance.new("BillboardGui")
             billboard.Adornee = head
-            billboard.Size = UDim2.new(0, 100, 0, 50)
+            billboard.Size = UDim2.new(0, 100, 0, 70)
             billboard.StudsOffset = Vector3.new(0, 3, 0)
             billboard.AlwaysOnTop = true
             billboard.Parent = head
             
             local nameLabel = Instance.new("TextLabel")
-            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
             nameLabel.BackgroundTransparency = 1
             nameLabel.Text = plr.Name
             nameLabel.TextColor3 = color
@@ -197,6 +200,27 @@ local function addESP(plr)
             nameLabel.Font = Enum.Font.GothamBold
             nameLabel.TextSize = 14
             nameLabel.Parent = billboard
+            
+            local healthLabel = Instance.new("TextLabel")
+            healthLabel.Size = UDim2.new(1, 0, 0.5, 0)
+            healthLabel.Position = UDim2.new(0, 0, 0.5, 0)
+            healthLabel.BackgroundTransparency = 1
+            healthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            healthLabel.TextStrokeTransparency = 0.5
+            healthLabel.Font = Enum.Font.GothamBold
+            healthLabel.TextSize = 12
+            healthLabel.Parent = billboard
+            
+            local function updateHealth()
+                if humanoid and humanoid.Health > 0 then
+                    healthLabel.Text = math.floor(humanoid.Health) .. " HP"
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    healthLabel.TextColor3 = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+                end
+            end
+            
+            updateHealth()
+            humanoid.HealthChanged:Connect(updateHealth)
             
             if not espBoxes[plr] then espBoxes[plr] = {} end
             table.insert(espBoxes[plr], highlight)
@@ -282,6 +306,9 @@ local autoFireKeyBox = createKeyBox("C", UDim2.new(0, 145, 0, 140))
 local maxBtn, maxIndicator = createButton("Max", UDim2.new(0, 10, 0, 185))
 local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
 
+local fovBtn, fovIndicator = createButton("Show FOV", UDim2.new(0, 10, 0, 230))
+local fovKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
+
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
@@ -293,7 +320,7 @@ espBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local function getClosestEnemy()
+local function getClosestEnemyInFOV()
     local mouse = player:GetMouse()
     local mousePos = Vector2.new(mouse.X, mouse.Y)
     local closest = nil
@@ -325,7 +352,7 @@ local function getClosestEnemy()
     return closest
 end
 
-local function getClosestEnemyMax()
+local function getClosestEnemyHead()
     local cam = workspace.CurrentCamera
     local closest = nil
     local shortestDistance = math.huge
@@ -423,20 +450,36 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.NumSides = 50
+FOVCircle.Radius = aimbotFOV
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Visible = false
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+
 RunService.RenderStepped:Connect(function()
+    if showFOV then
+        local mousePos = UIS:GetMouseLocation()
+        FOVCircle.Position = mousePos
+        FOVCircle.Radius = aimbotFOV
+        FOVCircle.Visible = true
+    else
+        FOVCircle.Visible = false
+    end
+    
     if maxEnabled then
-        local target = getClosestEnemyMax()
+        local target = getClosestEnemyHead()
         if target then
             local cam = workspace.CurrentCamera
-            local targetPos = target.Position
-            cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
         end
     elseif aimbotEnabled and rightMouseDown then
-        local target = getClosestEnemy()
+        local target = getClosestEnemyInFOV()
         if target then
             local cam = workspace.CurrentCamera
-            local targetPos = target.Position
-            cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
         end
     end
 end)
@@ -499,6 +542,15 @@ maxBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+fovBtn.MouseButton1Click:Connect(function()
+    showFOV = not showFOV
+    if showFOV then
+        fovIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    else
+        fovIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
+
 rejoinBtn.MouseButton1Click:Connect(function()
     local ts = game:GetService("TeleportService")
     local p = game:GetService("Players").LocalPlayer
@@ -553,6 +605,18 @@ maxKeyBox.FocusLost:Connect(function()
     end
 end)
 
+fovKeyBox.FocusLost:Connect(function()
+    local text = fovKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        fovKey = key
+        fovKeyBox.Text = text
+    else
+        fovKeyBox.Text = "N"
+        fovKey = Enum.KeyCode.N
+    end
+end)
+
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         rightMouseDown = true
@@ -599,6 +663,13 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         else
             maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         end
+    elseif input.KeyCode == fovKey then
+        showFOV = not showFOV
+        if showFOV then
+            fovIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        else
+            fovIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        end
     end
 end)
 
@@ -610,4 +681,4 @@ end)
 
 ScreenGui.Parent = game.CoreGui
 
-print("[FPS] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max | Aimbot: Segure BOTAO DIREITO")
+print("[FPS] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=FOV | Aimbot: Segure BOTAO DIREITO")
